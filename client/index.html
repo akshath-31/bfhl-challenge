@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Graph Analyzer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --bg-dark: #0d0d0d;
+            --bg-card: #1a1a1a;
+            --border-color: #2a2a2a;
+            --accent: #7c3aed;
+            --accent-hover: #6d28d9;
+            --cycle-badge: #dc2626;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-card);
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .tagline {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+            color: var(--text-main);
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 1rem;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: var(--accent);
+        }
+
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            width: 100%;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--accent-hover);
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        #errorBox {
+            background-color: rgba(220, 38, 38, 0.1);
+            color: #ef4444;
+            border: 1px solid #dc2626;
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+            margin-top: 1rem;
+        }
+
+        #outputPanel {
+            display: none;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-purple { background-color: rgba(124, 58, 237, 0.2); color: #a78bfa; }
+        .badge-red { background-color: rgba(220, 38, 38, 0.2); color: #f87171; }
+
+        .tree-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tree-body {
+            font-family: monospace;
+            color: #d1d5db;
+            white-space: pre;
+        }
+
+        .pill-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .pill {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Node Graph Analyzer</h1>
+        <div class="tagline">Data Processing Engine</div>
+    </header>
+
+    <main>
+        <div class="panel">
+            <div class="card">
+                <label for="edgeField">Enter Node Edges</label>
+                <textarea id="edgeField" placeholder="A->B, B->C&#10;or one per line"></textarea>
+                <button id="submitBtn">Run Analysis</button>
+                <div id="errorBox"></div>
+            </div>
+        </div>
+
+        <div class="panel" id="outputPanel">
+            <div class="info-grid">
+                <div class="card" id="identityCard">
+                    <h3>Identity</h3>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">User ID: <span id="outUserId" style="color: white;"></span></p>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">Email: <span id="outEmail" style="color: white;"></span></p>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">Roll Number: <span id="outRoll" style="color: white;"></span></p>
+                </div>
+                
+                <div class="card" id="summaryCard">
+                    <h3>Summary</h3>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">Total Trees: <span id="outTrees" class="badge badge-purple" style="margin-left:0.5rem;"></span></p>
+                    <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">Total Cycles: <span id="outCycles" class="badge badge-red" style="margin-left:0.5rem;"></span></p>
+                    <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">Largest Root: <span id="outLargest" style="color: white; margin-left:0.5rem;"></span></p>
+                </div>
+            </div>
+
+            <div id="hierarchyList" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+
+            <div class="card">
+                <h3>Invalid Entries</h3>
+                <div id="invalidList" class="pill-container"></div>
+            </div>
+
+            <div class="card">
+                <h3>Duplicate Edges</h3>
+                <div id="dupList" class="pill-container"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_ORIGIN = "http://localhost:4200";
+
+        const edgeField = document.getElementById('edgeField');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorBox = document.getElementById('errorBox');
+        const outputPanel = document.getElementById('outputPanel');
+        const hierarchyList = document.getElementById('hierarchyList');
+        const invalidList = document.getElementById('invalidList');
+        const dupList = document.getElementById('dupList');
+
+        submitBtn.addEventListener('click', () => {
+            clearError();
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Analysing...';
+            sendToApi();
+        });
+
+        // converts raw text area input into an array of strings
+        function parseEdgeInput() {
+            const raw = edgeField.value;
+            return raw.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
+        }
+
+        // dispatches payload to backend
+        async function sendToApi() {
+            try {
+                const dataArray = parseEdgeInput();
+                
+                if (dataArray.length === 0) {
+                    throw new Error("Please enter some valid edges before running analysis.");
+                }
+
+                const response = await fetch(`${API_ORIGIN}/bfhl`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: dataArray })
+                });
+
+                if (!response.ok) {
+                    const errObj = await response.json().catch(() => ({}));
+                    throw new Error(errObj.error || `HTTP Error ${response.status}`);
+                }
+
+                const resultData = await response.json();
+                displayResults(resultData);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Run Analysis';
+            }
+        }
+
+        // updates DOM with received JSON payload
+        function displayResults(data) {
+            outputPanel.style.display = 'flex';
+            
+            document.getElementById('outUserId').textContent = data.user_id || 'N/A';
+            document.getElementById('outEmail').textContent = data.email_id || 'N/A';
+            document.getElementById('outRoll').textContent = data.college_roll_number || 'N/A';
+
+            document.getElementById('outTrees').textContent = data.summary?.total_trees ?? 0;
+            document.getElementById('outCycles').textContent = data.summary?.total_cycles ?? 0;
+            document.getElementById('outLargest').textContent = data.summary?.largest_tree_root ?? 'None';
+
+            hierarchyList.innerHTML = '';
+            const renderedRoots = new Set();
+            
+            (data.hierarchies || []).forEach(item => {
+                if (renderedRoots.has(item.root)) return;
+                renderedRoots.add(item.root);
+                
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                let badgeHtml = '';
+                if (item.has_cycle) {
+                    badgeHtml = `<span class="badge badge-red">CYCLE</span>`;
+                } else {
+                    badgeHtml = `<span class="badge badge-purple">Depth: ${item.depth}</span>`;
+                }
+
+                card.innerHTML = `
+                    <div class="tree-header">
+                        <strong>Root: ${item.root}</strong>
+                        ${badgeHtml}
+                    </div>
+                    <div class="tree-body">${renderTreeView(item.tree || {}, "")}</div>
+                `;
+                hierarchyList.appendChild(card);
+            });
+
+            invalidList.innerHTML = '';
+            (data.invalid_entries || []).forEach(entry => {
+                const p = document.createElement('span');
+                p.className = 'pill';
+                p.textContent = entry;
+                invalidList.appendChild(p);
+            });
+            if (!data.invalid_entries?.length) invalidList.innerHTML = '<span class="pill">None</span>';
+
+            dupList.innerHTML = '';
+            (data.duplicate_edges || []).forEach(entry => {
+                const p = document.createElement('span');
+                p.className = 'pill';
+                p.textContent = entry;
+                dupList.appendChild(p);
+            });
+            if (!data.duplicate_edges?.length) dupList.innerHTML = '<span class="pill">None</span>';
+        }
+
+        // recursively builds visual string for tree structure
+        function renderTreeView(treeObj, indent) {
+            let out = '';
+            const keys = Object.keys(treeObj);
+            if (keys.length === 0) return out;
+
+            keys.forEach((key, index) => {
+                const isLast = index === keys.length - 1;
+                const branch = isLast ? '└── ' : '├── ';
+                out += indent + branch + key + '\n';
+                
+                const nextIndent = indent + (isLast ? '    ' : '│   ');
+                out += renderTreeView(treeObj[key], nextIndent);
+            });
+            return out;
+        }
+
+        // reveals error banner with message
+        function showError(msg) {
+            errorBox.textContent = msg;
+            errorBox.style.display = 'block';
+        }
+
+        // hides error banner
+        function clearError() {
+            errorBox.style.display = 'none';
+            errorBox.textContent = '';
+        }
+    </script>
+</body>
+</html>
