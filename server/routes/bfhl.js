@@ -40,4 +40,9 @@ router.post('/', (req, res) => {
     return res.json(responsePayload);
 });
 
+// handles the GET request for operation_code
+router.get('/', (req, res) => {
+    return res.status(200).json({ "operation_code": 1 });
+});
+
 export default router;

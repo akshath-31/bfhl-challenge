@@ -15,6 +15,10 @@ app.use((req, res, next) => {
 
 app.use('/bfhl', bfhlRoute);
 
+app.get('/', (req, res) => {
+    res.status(200).send('Server is running');
+});
+
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
